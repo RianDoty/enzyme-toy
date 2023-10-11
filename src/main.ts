@@ -1,150 +1,10 @@
+import { Vector2 } from "./Vector2";
 import "./index.css";
+import { Renderable, GraphNode, Connection, Scene, GravityWell, NodeGroup, NodeRepulsion, DesiredConnection } from "./classes";
+import { enzymeData, activatorData, parseData } from "./molecules";
 
-type Vector2 = { x: number; y: number };
+export const origin: Vector2 = {x: 0, y: 0}
 
-const Vector2 = {
-  add(v1: Vector2, v2: Vector2): Vector2 {
-    return { x: v1.x + v2.x, y: v1.y + v2.y };
-  },
-
-  sub(v1: Vector2, v2: Vector2): Vector2 {
-    return { x: v1.x - v2.x, y: v1.y - v2.y };
-  },
-
-  scale(v: Vector2, num: number): Vector2 {
-    return { x: v.x * num, y: v.y * num };
-  },
-
-  mag(v: Vector2): number {
-    return Math.sqrt(v.x ** 2 + v.y ** 2);
-  },
-
-  copy(v: Vector2): Vector2 {
-    return { x: v.x, y: v.y };
-  },
-};
-
-// X and Y point to center of node
-class GraphNode implements Renderable {
-  position: Vector2;
-  velocity: Vector2;
-  size: number;
-
-  constructor(x = 0, y = 0, size = 20) {
-    this.position = { x, y };
-    this.velocity = { x: 0, y: 0 };
-    this.size = size;
-  }
-
-  tick(ms: number) {
-    const delta = Vector2.scale(this.velocity, ms / 1000);
-    this.position = Vector2.add(this.position, delta);
-  }
-
-  render(ctx: CanvasRenderingContext2D) {
-    ctx.beginPath();
-    ctx.arc(this.position.x, this.position.y, this.size, 0, 2 * Math.PI);
-    ctx.stroke();
-  }
-}
-
-interface Renderable {
-  render: (ctx: CanvasRenderingContext2D) => void;
-  tick: (ms: number) => void;
-}
-
-class Scene implements Renderable {
-  ctx: CanvasRenderingContext2D;
-  renderables: Renderable[];
-
-  constructor(ctx: CanvasRenderingContext2D) {
-    this.ctx = ctx;
-    this.renderables = [];
-  }
-
-  add(...renderables: Renderable[]) {
-    this.renderables.push(...renderables);
-  }
-
-  tick(ms: number) {
-    this.renderables.forEach((r) => r.tick(ms));
-  }
-
-  // To be called once per frame
-  render() {
-    this.ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    this.renderables.forEach((r) => r.render(this.ctx));
-  }
-}
-
-class GravityWell implements Renderable {
-  position: Vector2;
-  nodes: GraphNode[];
-
-  constructor(x: number, y: number) {
-    this.position = { x, y };
-    this.nodes = [];
-  }
-
-  add(...nodes: GraphNode[]) {
-    this.nodes.push(...nodes);
-  }
-
-  tick(ms: number) {
-    this.nodes.forEach((node) => {
-      const offset = Vector2.sub(node.position, this.position);
-
-      const stiffness = 0.05;
-      const damping = 1;
-
-      const springAcc = Vector2.scale(offset, -1 * stiffness);
-      const dampingAcc = Vector2.scale(node.velocity, -1 * damping);
-
-      const acc = Vector2.add(springAcc, dampingAcc);
-
-      node.velocity = Vector2.add(node.velocity, Vector2.scale(acc, ms / 1000));
-    });
-  }
-
-  render() {}
-}
-
-class NodeRepulsion implements Renderable {
-  nodes: GraphNode[];
-  strength: number;
-  minDistance: number;
-
-  constructor({
-    strength,
-    minDistance,
-  }: {
-    strength: number;
-    minDistance: number;
-  }) {
-    this.strength = strength;
-    this.minDistance = minDistance;
-  }
-
-  add(...nodes: GraphNode[]) {
-    this.nodes.push(...nodes);
-  }
-
-  tick(ms: number) {
-    this.nodes.forEach((node) => {
-      // Each node should feel repulsion from every other node,
-      // proportional to 1/d^2 and 1/ms.
-      const otherNodes = this.nodes.filter((n) => n !== node);
-      otherNodes.forEach((other) => {
-        const offset = Vector2.sub(node.position, other.position);
-        const distance = Vector2.mag(offset);
-        const acc = Vector2.scale(offset, this.strength / distance ** 2 / ms);
-        node.velocity = Vector2.add(node.velocity, acc);
-      });
-    });
-  }
-
-  render() {}
-}
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 if (canvas !== null) {
@@ -154,8 +14,10 @@ if (canvas !== null) {
 }
 
 function setCanvasDimensions() {
-  canvas.width = screen.width;
-  canvas.height = screen.height;
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  origin.x = window.innerWidth / 2;
+  origin.y = window.innerHeight / 2
 }
 setCanvasDimensions();
 window.addEventListener("resize", setCanvasDimensions);
@@ -163,19 +25,39 @@ window.addEventListener("resize", setCanvasDimensions);
 const ctx = canvas.getContext("2d")!;
 
 const myScene = new Scene(ctx);
-const node = new GraphNode(50, 50);
-const centerWell = new GravityWell(200, 200);
-centerWell.add(node);
-myScene.add(centerWell, node);
+const centerWell = new GravityWell(0, 0, 0.01);
+const sideWell = new GravityWell(-100, -100, 0.01)
+const repulsion = new NodeRepulsion({strength: 100000})
 
-function render(ms: number) {
-  myScene.tick(ms);
+const enzyme = parseData(enzymeData)
+const activator = parseData(activatorData)
+
+//Allow the enzyme and activator to bond
+const desired = [[1,13],[3,4],[0,3]].map(([from, to]) => new DesiredConnection(activator.nodes[from], enzyme.nodes[to]))
+
+centerWell.add(...enzyme.nodes);
+sideWell.add(...activator.nodes)
+repulsion.add(...enzyme.nodes, ...activator.nodes)
+myScene.add([repulsion, centerWell, sideWell, ...enzyme.edges, ...enzyme.nodes, ...activator.edges, ...activator.nodes, ...desired, new NodeGroup(enzyme.nodes, true), new NodeGroup(activator.nodes, true)], -1);
+
+let last = 0
+const tickRate = 1/60 * 1000
+let timeToSimulate = 0
+function render(time: number) {
+  const ms = time - last
+  last = time
+
+  //Run at a constant tick rate. Also prevents "jumps" when the animation is paused and unpaused, or a lag spike occurs
+  timeToSimulate += ms
+  let ticks = 0
+  while (timeToSimulate > tickRate && ticks < 100) {
+    myScene.tick(tickRate)
+    timeToSimulate -= tickRate
+    ticks = ticks + 1
+  }
+
   myScene.render();
   requestAnimationFrame(render);
 }
 
-setInterval(() => {
-  console.log(node.position, node.velocity);
-}, 50);
-
-render(1);
+render(0);
