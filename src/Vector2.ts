@@ -17,6 +17,11 @@ export const Vector2 = {
     return Math.sqrt(v.x ** 2 + v.y ** 2);
   },
 
+  unit(v: Vector2): Vector2 {
+    const magnitude = Vector2.mag(v)
+    return {x: v.x / magnitude, y: v.y / magnitude}
+  },
+
   copy(v: Vector2): Vector2 {
     return { x: v.x, y: v.y };
   },

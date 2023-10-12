@@ -13,7 +13,6 @@ body {
 }
 
 .draggable {
-  outline: auto;
   display: block;
   position: fixed;
 }

@@ -89,7 +89,7 @@ export class Connection implements Renderable {
         const offset = Vector2.sub(to.position, from.position)
         const distance = this.target - Vector2.mag(offset)
 
-        const force = Vector2.scale(offset, distance)
+        const force = Vector2.scale(Vector2.unit(offset), distance * Vector2.mag(offset))
         const acceleration1 = Vector2.scale(force, -1 * ms / 1000)
         const acceleration2 = Vector2.scale(force, ms / 1000)
 
@@ -111,26 +111,34 @@ export class DesiredConnection implements Renderable {
     declare dashed: true
     from: GraphNode
     to: GraphNode
-    currentForce: number
+    opacity: number
+    target: number
     z:number
 
     constructor(from: GraphNode, to: GraphNode) {
         this.from = from
         this.to = to
-        this.currentForce = 0
+        this.opacity = 0
+        this.target = 50
         this.z = 0
     }
 
     tick(ms: number) {
         //Each connection is a spring that pulls on both nodes
-        const offset = Vector2.sub(this.from.position, this.to.position)
-        const distance = Vector2.mag(offset)
+        const from = this.from
+        const to = this.to
+        const offset = Vector2.sub(to.position, from.position)
+        const distance = this.target - Vector2.mag(offset)
 
-        const scalar = -100 / (distance**1.2)
-        const reverseOffset = Vector2.scale(offset, -100 / (distance**1.2))
-        this.currentForce = (scalar ** 2)
+        const scalar = -1 * distance * Math.exp(-1 * (distance/this.target)**10) * Vector2.mag(offset)
+        this.opacity = Math.max((distance - this.target) / distance)
+        const force = Vector2.scale(Vector2.unit(offset), scalar)
 
-        this.from.velocity = Vector2.add(this.to.velocity, reverseOffset)
+        const acceleration1 = Vector2.scale(force, ms / 1000)
+        const acceleration2 = Vector2.scale(force, -1 * ms / 1000)
+
+        from.velocity = Vector2.add(from.velocity, acceleration1)
+        to.velocity = Vector2.add(to.velocity, acceleration2)
     }
 
     render(ctx: CanvasRenderingContext2D) {
@@ -140,7 +148,9 @@ export class DesiredConnection implements Renderable {
         ctx.moveTo(fromP.x, fromP.y)
         ctx.lineTo(toP.x, toP.y)
         ctx.setLineDash([5,15])
-        ctx.strokeStyle = `rgb(${this.currentForce},${this.currentForce},${this.currentForce})`
+
+        const opacity = 
+        ctx.strokeStyle = `rgb(${255 * (1-this.opacity)},${255 * (1-this.opacity)},${255 * (1-this.opacity)})`
         ctx.stroke()
         ctx.setLineDash([])
         ctx.strokeStyle ='rgb(0,0,0)'
@@ -172,7 +182,7 @@ export class GravityWell implements Renderable {
             const damping = 0.2;
             const mass = 0.01
 
-            const springAcc = Vector2.scale(offset, -1 * this.strength);
+            const springAcc = Vector2.scale(Vector2.unit(offset), -1 * this.strength * distance);
             const dampingAcc = Vector2.scale(node.velocity, -1 * damping);
 
             const acc = Vector2.add(springAcc, dampingAcc);

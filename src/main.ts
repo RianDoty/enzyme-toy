@@ -50,7 +50,7 @@ function render(time: number) {
   //Run at a constant tick rate. Also prevents "jumps" when the animation is paused and unpaused, or a lag spike occurs
   timeToSimulate += ms
   let ticks = 0
-  while (timeToSimulate > tickRate && ticks < 100) {
+  while (timeToSimulate > tickRate && ticks < 10000) {
     myScene.tick(tickRate)
     timeToSimulate -= tickRate
     ticks = ticks + 1
