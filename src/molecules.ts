@@ -84,8 +84,29 @@ export const activatorData: NodesData = {
     ]
 }
 
+export const substrateData: NodesData = {
+    nodes: [
+        {label:0,center:{x:-12.9,y:-42.9}},
+        {label:1,center:{x:-40.7,y:-46}},
+        {label:2,center:{x:-71,y:-96.8}},
+        {label:3,center:{x:-75.7,y:-68.6}},
+        {label:4,center:{x:-5.8,y:-71.4}},
+        {label:5,center:{x:-47.8,y:-17.6}}
+    ],
+    edges: [
+        {source:0,target:2},
+        {source:0,target:4},
+        {source:0,target:5},
+        {source:1,target:4},
+        {source:1,target:5},
+        //{source:2,target:3},
+        {source:2,target:4},
+        {source:4,target:5}
+    ]
+}
+
 export function parseData(data: NodesData) {
-    const nodes = data.nodes.map(d => new GraphNode(d.center.x * 2, d.center.y * 2))
+    const nodes = data.nodes.map(d => new GraphNode(d.center.x * 2, d.center.y * 2, undefined, String(d.label)))
     const edges = data.edges.map(d => new Connection(nodes[d.source], nodes[d.target]))
     return {nodes, edges}
 }

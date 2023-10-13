@@ -42,13 +42,15 @@ export class GraphNode implements Renderable {
     position: Vector2;
     velocity: Vector2;
     size: number;
+    label: string;
     z: number
 
-    constructor(x = 0, y = 0, size = 20) {
+    constructor(x = 0, y = 0, size = 20, label='?') {
         this.position = { x, y };
         this.velocity = { x: 0, y: 0 };
         this.size = size;
         this.z = 0
+        this.label = label
     }
 
     tick(ms: number) {
@@ -63,6 +65,9 @@ export class GraphNode implements Renderable {
         ctx.arc(canvasPos.x, canvasPos.y, this.size, 0, 2 * Math.PI);
         ctx.fillStyle = 'white'
         ctx.fill()
+        // ctx.fillStyle = 'black'
+        // ctx.font = "24px arial";
+        // ctx.fillText(this.label, canvasPos.x - 10, canvasPos.y + 10)
         ctx.stroke();
     }
 }
@@ -113,6 +118,7 @@ export class DesiredConnection implements Renderable {
     to: GraphNode
     opacity: number
     target: number
+    strength: number
     z:number
 
     constructor(from: GraphNode, to: GraphNode) {
@@ -120,6 +126,7 @@ export class DesiredConnection implements Renderable {
         this.to = to
         this.opacity = 0
         this.target = 50
+        this.strength = 1
         this.z = 0
     }
 
@@ -130,8 +137,8 @@ export class DesiredConnection implements Renderable {
         const offset = Vector2.sub(to.position, from.position)
         const distance = this.target - Vector2.mag(offset)
 
-        const scalar = -1 * distance * Math.exp(-1 * (distance/this.target)**10) * Vector2.mag(offset)
-        this.opacity = Math.max((distance - this.target) / distance)
+        const scalar = -1 * this.strength * distance * Math.exp(-1 * (distance/this.target/3)**20) * Vector2.mag(offset)
+        this.opacity = Math.max(1 - Math.abs(distance) / 200 , 0)
         const force = Vector2.scale(Vector2.unit(offset), scalar)
 
         const acceleration1 = Vector2.scale(force, ms / 1000)
@@ -142,6 +149,7 @@ export class DesiredConnection implements Renderable {
     }
 
     render(ctx: CanvasRenderingContext2D) {
+        if (this.opacity <= 0) return;
         const fromP = Vector2.toCanvasSpace(this.from.position)
         const toP = Vector2.toCanvasSpace(this.to.position)
         ctx.beginPath()
@@ -149,7 +157,6 @@ export class DesiredConnection implements Renderable {
         ctx.lineTo(toP.x, toP.y)
         ctx.setLineDash([5,15])
 
-        const opacity = 
         ctx.strokeStyle = `rgb(${255 * (1-this.opacity)},${255 * (1-this.opacity)},${255 * (1-this.opacity)})`
         ctx.stroke()
         ctx.setLineDash([])
@@ -251,7 +258,7 @@ export class NodeGroup implements Renderable {
     mouse: {oldPos: Vector2, delta: Vector2}
     offsets: Vector2[]
 
-    constructor(nodes: GraphNode[] = [], draggable: boolean) {
+    constructor(nodes: GraphNode[] = [], draggable: boolean, label = '') {
         this.nodes = [...nodes]
         this.draggable = draggable
         this.z = 0
@@ -263,6 +270,7 @@ export class NodeGroup implements Renderable {
         document.body.appendChild(this.dragDiv)
 
         this.dragDiv.className = 'draggable'
+        this.dragDiv.innerText = label
         this.setupDrag()
     }
 
