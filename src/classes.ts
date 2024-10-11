@@ -235,9 +235,10 @@ export class NodeRepulsion implements Renderable {
                 const distance = Vector2.mag(offset);
                 if (distance === 0) return
 
-                const minDistance = 150
+                // this code works better for a clean sim, but is mathematically a mess
+                //const force = Math.min(this.strength * Math.max(1 - distance**0.75/minDistance**0.75, 0), this.maxForce)
 
-                const force = Math.min(this.strength * Math.max(1 - distance**0.75/minDistance**0.75, 0), this.maxForce)
+                const force = this.strength / distance ** 2
                 const acceleration = Vector2.scale(offset, force * (ms / 1000));
 
                 node.velocity = Vector2.add(node.velocity, acceleration);
@@ -309,6 +310,8 @@ export class NodeGroup implements Renderable {
         const pc1 = Vector2.toCanvasSpace(this.p1)
         const pc2 = Vector2.toCanvasSpace(this.p2)
 
+        // Make the div a box drawn with opposit corners
+        // at p1 to p2
         this.dragDiv.style.left = `${pc1.x}px`
         this.dragDiv.style.top = `${pc1.y}px`
         this.dragDiv.style.width = `${pc2.x - pc1.x}px`
@@ -317,14 +320,20 @@ export class NodeGroup implements Renderable {
 
     tick() {
         // Get the bounding box of the group
+
+        /// Start with some position
         this.p1 = Vector2.copy(this.nodes[0].position)
         this.p2 = Vector2.copy(this.nodes[0].position)
 
+        /// Get the farthest north-west and
+        /// farthest south-east points
         for (const node of this.nodes) {
             const r = node.size
             const pos = node.position
+            // north-west
             if (pos.x - r < this.p1.x) this.p1.x = pos.x - r
             if (pos.y - r < this.p1.y) this.p1.y = pos.y - r
+            // south-east
             if (pos.x + r > this.p2.x) this.p2.x = pos.x + r
             if (pos.y + r > this.p2.y) this.p2.y = pos.y + r
         }
